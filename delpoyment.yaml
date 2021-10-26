@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dbconnection
+  labels:
+    app: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/role: 'internal-app'
+        vault.hashicorp.com/agent-inject-secret-dbconfig.json: 'internal/data/database/config'
+        vault.hashicorp.com/agent-inject-template-dbconfig.json: |
+          {{ with secret "internal/data/database/config" -}}
+          {
+              "username" : "{{.Data.data.user}}",
+              "password" : "{{.Data.data.passwd}}",
+              "addr" : "{{.Data.data.addr}}",
+              "net" : "{{.Data.data.net}}",
+              "dbname" : "{{.Data.data.dbname}}"
+          }
+          {{- end }}
+    spec:
+      serviceAccountName: internal-app
+      containers:
+      - name: web
+        image: kensenh/dbconnection
+        ports:
+        - containerPort: 8888
